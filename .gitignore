@@ -1,0 +1,28 @@
+# Environment / secrets
+.env
+.env.local
+
+# Claude Code project instructions (local only)
+CLAUDE.md
+
+# Generated output
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
