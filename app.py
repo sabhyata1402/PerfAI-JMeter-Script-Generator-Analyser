@@ -234,23 +234,6 @@ st.markdown("""
         box-shadow: 0 1px 4px rgba(124,58,237,0.06) !important;
     }
 
-    /* Give Streamlit's file-upload button enough room so its label doesn't overlap. */
-    [data-testid="stFileUploader"] button,
-    [data-testid="stFileUploader"] [role="button"] {
-        min-width: 140px !important;
-        min-height: 44px !important;
-        padding: 0.5rem 1.1rem !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        white-space: nowrap !important;
-        line-height: 1.2 !important;
-        font-size: 0.92rem !important;
-        font-weight: 600 !important;
-    }
-    [data-testid="stFileUploaderDropzone"] button {
-        flex-shrink: 0 !important;
-    }
 
     /* ── Inputs ── */
     .stTextInput input, .stTextArea textarea, .stSelectbox > div > div {
