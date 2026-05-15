@@ -1,5 +1,8 @@
 # ⚡ PerfAI — AI-Powered JMeter Script Generator & Performance Analyser
 
+<img width="1689" height="930" alt="image" src="https://github.com/user-attachments/assets/0a6377a9-4b8a-42db-b282-25ce4e558461" />
+
+
 
 ## What It Does
 
