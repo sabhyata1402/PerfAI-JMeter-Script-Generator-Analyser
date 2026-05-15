@@ -234,6 +234,32 @@ st.markdown("""
         box-shadow: 0 1px 4px rgba(124,58,237,0.06) !important;
     }
 
+    /* Keep Streamlit's file-upload button from rendering overlapping text. */
+    [data-testid="stFileUploader"] button,
+    [data-testid="stFileUploader"] [role="button"] {
+        min-width: 132px !important;
+        min-height: 48px !important;
+        padding: 0.55rem 1.2rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        line-height: 1.2 !important;
+        font-size: 0 !important;
+    }
+    [data-testid="stFileUploader"] button::before,
+    [data-testid="stFileUploader"] [role="button"]::before {
+        content: "Upload";
+        font-size: 0.95rem !important;
+        font-weight: 700 !important;
+        color: var(--p-text) !important;
+    }
+    [data-testid="stFileUploader"] button *,
+    [data-testid="stFileUploader"] [role="button"] * {
+        font-size: 0 !important;
+    }
+
     /* ── Inputs ── */
     .stTextInput input, .stTextArea textarea, .stSelectbox > div > div {
         border: 1.5px solid #DDD6FE !important;
