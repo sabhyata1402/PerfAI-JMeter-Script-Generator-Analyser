@@ -478,7 +478,12 @@ with tab1:
                     st.error(f"Failed to parse spec: {e}")
 
     elif input_method == "Upload Swagger file":
-        uploaded = st.file_uploader("Upload your openapi.json or openapi.yaml", type=["json", "yaml", "yml"])
+        st.markdown("**Upload your OpenAPI file**")
+        uploaded = st.file_uploader(
+            "Upload your openapi.json or openapi.yaml",
+            type=["json", "yaml", "yml"],
+            label_visibility="collapsed",
+        )
         if uploaded:
             with st.spinner("Parsing..."):
                 try:
@@ -519,7 +524,12 @@ with tab1:
                     st.error(f"GraphQL introspection failed: {e}")
 
     elif input_method == "GraphQL (.graphql SDL file)":
-        gql_file = st.file_uploader("Upload your .graphql SDL schema file", type=["graphql", "gql"])
+        st.markdown("**Upload your GraphQL SDL file**")
+        gql_file = st.file_uploader(
+            "Upload your .graphql SDL schema file",
+            type=["graphql", "gql"],
+            label_visibility="collapsed",
+        )
         if gql_file:
             with st.spinner("Parsing SDL schema..."):
                 try:
@@ -536,7 +546,12 @@ with tab1:
                     st.error(f"SDL parse error: {e}")
 
     elif input_method == "gRPC (.proto file)":
-        proto_file = st.file_uploader("Upload your .proto file", type=["proto"])
+        st.markdown("**Upload your gRPC proto file**")
+        proto_file = st.file_uploader(
+            "Upload your .proto file",
+            type=["proto"],
+            label_visibility="collapsed",
+        )
         if proto_file:
             with st.spinner("Parsing proto schema..."):
                 try:
@@ -721,7 +736,12 @@ with tab2:
     if run_method == "Upload existing .jtl results":
         col1, col2 = st.columns([2, 1])
         with col1:
-            jtl_file = st.file_uploader("Upload JMeter .jtl results file", type=["jtl", "csv"])
+            st.markdown("**Upload JMeter results file**")
+            jtl_file = st.file_uploader(
+                "Upload JMeter .jtl results file",
+                type=["jtl", "csv"],
+                label_visibility="collapsed",
+            )
         with col2:
             st.info("📁 Don't have a .jtl file? Use our sample data to try the analyser.")
             if st.button("Use sample data"):
@@ -743,7 +763,12 @@ with tab2:
         jmx_path = st.session_state.get("jmx_path", "")
         if not jmx_path:
             st.warning("Generate a JMX script in the Script Generator tab first, or upload one below.")
-            jmx_upload = st.file_uploader("Upload .jmx file", type=["jmx"])
+            st.markdown("**Upload a JMX file**")
+            jmx_upload = st.file_uploader(
+                "Upload .jmx file",
+                type=["jmx"],
+                label_visibility="collapsed",
+            )
             if jmx_upload:
                 os.makedirs("output", exist_ok=True)
                 jmx_path = "output/uploaded.jmx"
@@ -1325,6 +1350,7 @@ with tab4:
         type=["jtl", "csv"],
         accept_multiple_files=True,
         key="compare_upload",
+        label_visibility="collapsed",
     )
 
     if uploaded_files and len(uploaded_files) >= 2:
