@@ -1,5 +1,5 @@
 openai>=1.55.0
-streamlit>=1.35.0
+streamlit==1.50.0
 requests>=2.31.0
 pandas>=2.0.0
 matplotlib>=3.7.0
