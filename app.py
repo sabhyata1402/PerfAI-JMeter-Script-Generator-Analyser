@@ -124,10 +124,20 @@ st.markdown("""
 <style>
     /* ══ PERFAI — PURPLE THEME ══════════════════════════════════════════════ */
 
-    /* Global font override — clean Inter-style system font */
-    html, body, [class*="css"], .stApp, .stMarkdown, p, div, span, label,
+    /* Global font override — clean Inter-style system font.
+       Exclude Material Icons / Symbols spans so their ligature names don't leak as text. */
+    html, body, [class*="css"], .stApp, .stMarkdown, p, div, label,
     .stTextInput, .stTextArea, .stSelectbox, .stRadio, .stSlider {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    }
+    /* Preserve Material Icons font on icon spans (Streamlit renders icons via these). */
+    span[class*="material"], i[class*="material"],
+    span[data-testid*="Icon"], [data-testid*="Icon"] span,
+    .material-icons, .material-icons-outlined, .material-symbols-rounded,
+    .material-symbols-outlined, .material-symbols-sharp {
+        font-family: "Material Symbols Rounded", "Material Symbols Outlined",
+                     "Material Icons", "Material Icons Outlined" !important;
+        font-feature-settings: "liga" !important;
     }
     /* Tone down Streamlit's default bold headings */
     h1, h2, h3 {
