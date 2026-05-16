@@ -341,7 +341,7 @@ st.markdown(
         </div>
         <div class="hero-pills">
             <span class="hero-pill">⚙ Swagger / OpenAPI / GraphQL / gRPC</span>
-            <span class="hero-pill">🤖 JMeter / Gatling / k6 / LoadRunner generation</span>
+            <span class="hero-pill">🤖 JMeter / Gatling / k6 generation</span>
             <span class="hero-pill">📊 .jtl metrics analysis</span>
             <span class="hero-pill">🔍 AI bottleneck detection</span>
             <span class="hero-pill">📄 PDF performance report</span>
@@ -406,7 +406,7 @@ with st.sidebar:
     Built by a performance engineer with 11 years of experience.<br><br>
     Azure OpenAI powers:<br>
     <span style="color:#A78BFA;">▸</span> Swagger / GraphQL / gRPC parsing<br>
-    <span style="color:#A78BFA;">▸</span> JMeter / Gatling / k6 / LoadRunner generation<br>
+    <span style="color:#A78BFA;">▸</span> JMeter / Gatling / k6 generation<br>
     <span style="color:#C4B5FD;">▸</span> Results analysis &amp; diagnosis<br>
     <span style="color:#C4B5FD;">▸</span> Fix recommendations<br><br>
     Also ships:<br>
@@ -619,16 +619,11 @@ I have a REST API with these endpoints:
     with col3:
         protocol = st.selectbox("Protocol", ["HTTPS", "HTTP"])
     with col4:
-        script_format = st.selectbox("Script Format", ["JMeter (.jmx)", "Gatling (.scala)", "k6 (.js)", "LoadRunner (.c)"])
+        script_format = st.selectbox("Script Format", ["JMeter (.jmx)", "Gatling (.scala)", "k6 (.js)"])
 
     # ── Generate button ───────────────────────────────────────────────────────
     st.divider()
-    _gen_label = {
-        "JMeter (.jmx)":       "⚡ Generate JMeter Script",
-        "Gatling (.scala)":    "⚡ Generate Gatling Script",
-        "k6 (.js)":            "⚡ Generate k6 Script",
-        "LoadRunner (.c)":     "⚡ Generate LoadRunner VuGen Script",
-    }.get(script_format, "⚡ Generate Script")
+    _gen_label = {"JMeter (.jmx)": "⚡ Generate JMeter Script", "Gatling (.scala)": "⚡ Generate Gatling Script", "k6 (.js)": "⚡ Generate k6 Script"}.get(script_format, "⚡ Generate Script")
     if st.button(_gen_label, type="primary", disabled=not endpoints_text):
         if not all([
             os.environ.get("AZURE_OPENAI_API_KEY"),
@@ -654,7 +649,6 @@ I have a REST API with these endpoints:
                         st.session_state["jmx_script"] = jmx_script
                         st.session_state.pop("gatling_script", None)
                         st.session_state.pop("k6_script", None)
-                        st.session_state.pop("loadrunner_script", None)
                         os.makedirs("output", exist_ok=True)
                         jmx_path = "output/generated_test.jmx"
                         with open(jmx_path, "w") as f:
@@ -674,7 +668,6 @@ I have a REST API with these endpoints:
                         st.session_state["gatling_script"] = gatling_script
                         st.session_state.pop("jmx_script", None)
                         st.session_state.pop("k6_script", None)
-                        st.session_state.pop("loadrunner_script", None)
                         os.makedirs("output", exist_ok=True)
                         with open("output/generated_simulation.scala", "w") as f:
                             f.write(gatling_script)
@@ -683,7 +676,7 @@ I have a REST API with these endpoints:
                         st.session_state.pop("gatling_script", None)
                         st.error(f"Generation failed: {e}")
 
-            elif script_format == "k6 (.js)":
+            else:  # k6
                 with st.spinner("Azure OpenAI is writing your k6 script..."):
                     try:
                         from src.script_generator import generate_k6_script
@@ -691,35 +684,12 @@ I have a REST API with these endpoints:
                         st.session_state["k6_script"] = k6_script
                         st.session_state.pop("jmx_script", None)
                         st.session_state.pop("gatling_script", None)
-                        st.session_state.pop("loadrunner_script", None)
                         os.makedirs("output", exist_ok=True)
                         with open("output/generated_test.js", "w") as f:
                             f.write(k6_script)
                         st.success("k6 script generated successfully!")
                     except Exception as e:
                         st.session_state.pop("k6_script", None)
-                        st.error(f"Generation failed: {e}")
-
-            else:  # LoadRunner
-                with st.spinner("Azure OpenAI is writing your LoadRunner VuGen script..."):
-                    try:
-                        from src.script_generator import generate_loadrunner_script
-                        lr_script = generate_loadrunner_script(endpoints_text, config)
-                        st.session_state["loadrunner_script"] = lr_script
-                        st.session_state.pop("jmx_script", None)
-                        st.session_state.pop("gatling_script", None)
-                        st.session_state.pop("k6_script", None)
-                        os.makedirs("output", exist_ok=True)
-                        with open("output/generated_action.c", "w") as f:
-                            f.write(lr_script)
-                        st.success("LoadRunner VuGen script generated successfully!")
-                        st.info(
-                            "📌 Paste this code into the `Action()` function of a new "
-                            "VuGen **Web/HTTP** project. Configure runtime settings "
-                            "(Vusers, duration, pacing) inside VuGen Controller as usual."
-                        )
-                    except Exception as e:
-                        st.session_state.pop("loadrunner_script", None)
                         st.error(f"Generation failed: {e}")
 
     if "jmx_script" in st.session_state:
@@ -753,16 +723,6 @@ I have a REST API with these endpoints:
             mime="text/plain",
         )
 
-    if "loadrunner_script" in st.session_state:
-        with st.expander("View generated LoadRunner VuGen script (Action.c)", expanded=True):
-            st.code(st.session_state["loadrunner_script"], language="c")
-        st.download_button(
-            "⬇ Download LoadRunner Action.c",
-            data=st.session_state["loadrunner_script"],
-            file_name="Action.c",
-            mime="text/plain",
-        )
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — Run & Analyse
@@ -783,50 +743,30 @@ with tab2:
 
     jtl_path = None
 
-    # ── Upload results (JMeter .jtl / Gatling .log / k6 .json / LoadRunner CSV)
+    # ── Upload .jtl ───────────────────────────────────────────────────────────
     if run_method == "Upload existing .jtl results":
         col1, col2 = st.columns([2, 1])
         with col1:
-            st.markdown("**Upload results file** — JMeter `.jtl`, Gatling `simulation.log`, k6 `.json`, or LoadRunner Analysis `.csv`")
+            st.markdown("**Upload JMeter results file**")
             jtl_file = st.file_uploader(
-                "Upload JMeter .jtl, Gatling .log, k6 .json, or LoadRunner .csv results file",
-                type=["jtl", "csv", "log", "json"],
+                "Upload JMeter .jtl results file",
+                type=["jtl", "csv"],
                 label_visibility="collapsed",
             )
         with col2:
-            st.info("📁 No results file? Use our sample data to try the analyser.")
+            st.info("📁 Don't have a .jtl file? Use our sample data to try the analyser.")
             if st.button("Use sample data"):
                 jtl_path = "sample_data/sample_results.jtl"
                 st.session_state["jtl_path"] = jtl_path
-                st.session_state["engine"] = "jmeter"
                 st.success("Sample data loaded!")
 
         if jtl_file:
-            from src.engine_dispatcher import detect_engine
             os.makedirs("output", exist_ok=True)
-            ext = os.path.splitext(jtl_file.name)[1].lower() or ".jtl"
-            jtl_path = f"output/uploaded_results{ext}"
+            jtl_path = "output/uploaded_results.jtl"
             with open(jtl_path, "wb") as f:
                 f.write(jtl_file.read())
-            detected = detect_engine(jtl_path)
             st.session_state["jtl_path"] = jtl_path
-            st.session_state["engine"] = detected
-            st.success(f"Results file uploaded — detected engine: **{detected.upper()}**")
-
-        # Allow user to override the auto-detected engine
-        if st.session_state.get("jtl_path"):
-            current_engine = st.session_state.get("engine", "jmeter")
-            engine_options = ["jmeter", "gatling", "k6", "loadrunner"]
-            if current_engine not in engine_options:
-                current_engine = "jmeter"
-            chosen = st.selectbox(
-                "Engine (auto-detected — override if wrong):",
-                options=engine_options,
-                index=engine_options.index(current_engine),
-                key="engine_override",
-            )
-            if chosen != current_engine:
-                st.session_state["engine"] = chosen
+            st.success("Results file uploaded!")
 
     # ── Run locally ───────────────────────────────────────────────────────────
     elif run_method == "Run JMeter locally":
@@ -933,8 +873,8 @@ with tab2:
                 st.error("Please enter Azure OpenAI key, endpoint, and deployment in the sidebar.")
             else:
                 with st.spinner("Parsing results..."):
-                    from src.engine_dispatcher import parse_any
-                    metrics = parse_any(jtl_path, engine=st.session_state.get("engine"))
+                    from src.results_parser import parse_results
+                    metrics = parse_results(jtl_path)
                     st.session_state["metrics"] = metrics
 
                 with st.spinner("Azure OpenAI is analysing your results..."):
@@ -1401,7 +1341,7 @@ with tab3:
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab4:
     import plotly.graph_objects as go
-    from src.engine_dispatcher import parse_any as _parse_results
+    from src.results_parser import parse_results as _parse_results
 
     st.markdown("""
     <div style="background:linear-gradient(135deg,#FFFFFF,#F5F3FF);
@@ -1410,15 +1350,15 @@ with tab4:
                 box-shadow:0 2px 14px rgba(124,58,237,0.09);">
         <div style="font-size:1.5rem;font-weight:800;color:#1E1B4B;margin-bottom:6px;">⚖ Compare Test Results</div>
         <div style="font-size:0.9rem;color:#5B21B6;">
-            Upload 2 or more results files (JMeter <code>.jtl</code>, Gatling <code>.log</code>, k6 <code>.json</code>, or LoadRunner Analysis <code>.csv</code>) to compare runs side-by-side.
+            Upload 2 or more <code>.jtl</code> files to compare performance across runs side-by-side.
         </div>
     </div>
     <div style="height:3px;background:linear-gradient(90deg,#7C3AED,#A78BFA);border-radius:4px;margin-bottom:22px;"></div>
     """, unsafe_allow_html=True)
 
     uploaded_files = st.file_uploader(
-        "Upload results files (select 2 or more) — JMeter .jtl, Gatling .log, k6 .json, or LoadRunner .csv",
-        type=["jtl", "csv", "log", "json"],
+        "Upload JTL files (select 2 or more)",
+        type=["jtl", "csv"],
         accept_multiple_files=True,
         key="compare_upload",
         label_visibility="collapsed",
