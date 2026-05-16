@@ -45,7 +45,7 @@ cd PerfAI-JMeter-Script-Generator-Analyser
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Set your credentials
+# 3. Set your credentials (see Setup section below)
 cp .env.example .env
 # Edit .env and fill in your Azure OpenAI values
 
@@ -53,14 +53,58 @@ cp .env.example .env
 streamlit run app.py
 ```
 
-## Try It Without JMeter
+## Setup
 
-No JMeter installed? No problem. Use the included sample `.jtl` file to test the full AI analysis and reporting pipeline immediately:
+### Requirements
+
+- **Python 3.9+** (project is tested on 3.9 with pinned `streamlit==1.50.0`)
+- **An Azure OpenAI subscription** with a deployed model (e.g. `gpt-4o`, `gpt-4o-mini`)
+- **JMeter** (optional, only if you want to run tests locally rather than just analyse existing `.jtl` files)
+
+### Environment variables
+
+The repo ships with [`.env.example`](.env.example) as a template. Copy it to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Required? | What it's for | Where to get it |
+|---|---|---|---|
+| `AZURE_OPENAI_API_KEY` | **Yes** | AI script generation + analysis | Azure Portal → your Azure OpenAI resource → *Keys and Endpoint* |
+| `AZURE_OPENAI_ENDPOINT` | **Yes** | Your Azure OpenAI resource URL | Same place — looks like `https://<resource>.openai.azure.com` |
+| `AZURE_OPENAI_DEPLOYMENT` | **Yes** | Name of your model deployment | Azure AI Studio → *Deployments* (this is the deployment name, **not** the model ID) |
+| `AZURE_OPENAI_API_VERSION` | No | API version | Defaults to `2024-10-21`. Override only if your deployment requires a different one |
+| `AWS_ACCESS_KEY_ID` | No | Cloud test runs only | Only needed for the "Run on AWS EC2" or "Distributed" options |
+| `AWS_SECRET_ACCESS_KEY` | No | Cloud test runs only | Same |
+| `AWS_DEFAULT_REGION` | No | Cloud test runs only | Defaults to `eu-west-1` |
+| `JMETER_PATH` | No | Local JMeter runner | Defaults to `jmeter` (assumes it's on your `PATH`) |
+
+> **Security**: `.env` is gitignored — your keys never leave your machine. Never commit `.env`. The `.env.example` file only contains placeholders.
+
+### Don't have Azure OpenAI?
+
+You can still demo most of the app:
+
+| What works without Azure OpenAI keys | What needs the keys |
+|---|---|
+| Browse the UI, switch tabs | Generate JMX/Gatling/k6 scripts |
+| Parse Swagger/GraphQL/Proto specs | AI bottleneck analysis |
+| Upload `.jtl` files → metrics dashboard | AI-generated findings & recommendations |
+| Use **sample data** to see the report flow | |
+| Compare 2+ `.jtl` files side-by-side | |
+| Export the PDF report (without AI findings) | |
+
+Azure OpenAI has a free tier under the [Azure Free Account](https://azure.microsoft.com/en-us/free/) — sufficient to demo this app end-to-end.
+
+## Try It Without JMeter (or any setup)
+
+No JMeter installed? Use the included sample `.jtl` file:
 
 1. Open the **Run & Analyse** tab
 2. Select **"Upload existing .jtl results"**
 3. Click **"Use sample data"**
-4. Click **"Analyse Results with AI"**
+4. Click **"Analyse Results with AI"** (this step requires Azure OpenAI keys — without them, you'll still see the parsed metrics and charts)
 
 ## Features
 
