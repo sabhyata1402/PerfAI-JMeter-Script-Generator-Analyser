@@ -2,9 +2,10 @@
 script_generator.py
 Uses Azure OpenAI to generate load test scripts.
 Public functions:
-    generate_script(endpoints_text, config)         -> str  (JMeter JMX XML)
-    generate_gatling_script(endpoints_text, config) -> str  (Gatling Scala)
-    generate_k6_script(endpoints_text, config)      -> str  (k6 JavaScript)
+    generate_script(endpoints_text, config)             -> str  (JMeter JMX XML)
+    generate_gatling_script(endpoints_text, config)     -> str  (Gatling Scala)
+    generate_k6_script(endpoints_text, config)          -> str  (k6 JavaScript)
+    generate_loadrunner_script(endpoints_text, config)  -> str  (LoadRunner VuGen C — Action.c)
 """
 
 import os
@@ -150,6 +151,42 @@ def generate_k6_script(endpoints_text: str, config: dict) -> str:
     return raw
 
 
+def generate_loadrunner_script(endpoints_text: str, config: dict) -> str:
+    """
+    Ask Azure OpenAI to generate a LoadRunner VuGen Action.c script for the given API.
+
+    Returns:
+        VuGen C source code as a string. Drop into the Action.c of a Web/HTTP VuGen project.
+    """
+    prompt = _build_loadrunner_prompt(endpoints_text, config)
+    client = _build_client()
+    deployment = _get_deployment()
+
+    message = client.chat.completions.create(
+        model=deployment,
+        temperature=0,
+        max_tokens=MAX_OUTPUT_TOKENS,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert LoadRunner / VuGen performance engineer. "
+                    "Output only complete, compilable VuGen C code for the Web/HTTP protocol. "
+                    "Never output markdown fences or explanations."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+    )
+
+    raw = (message.choices[0].message.content or "").strip()
+    if raw.startswith("```"):
+        lines = raw.split("\n")
+        lines = [l for l in lines if not l.startswith("```")]
+        raw = "\n".join(lines).strip()
+    return raw
+
+
 # -- internal helpers ----------------------------------------------------------
 
 def _build_prompt(endpoints_text: str, config: dict) -> str:
@@ -270,6 +307,41 @@ Generate a complete, production-ready k6 JavaScript test script for the followin
 8. Add thresholds in options for p(95) < 500ms and error rate < 1%
 
 Output ONLY raw JavaScript. Start with the import lines. No markdown.
+"""
+
+
+def _build_loadrunner_prompt(endpoints_text: str, config: dict) -> str:
+    return f"""You are an expert LoadRunner / VuGen performance engineer with 10+ years of experience
+on the Web/HTTP protocol.
+
+Generate a complete, production-ready Action.c script body for VuGen. The user will paste this
+directly into the Action() function of a new Web/HTTP VuGen project.
+
+## API Endpoints
+{endpoints_text}
+
+## Load Test Configuration
+- Virtual Users: {config.get('virtual_users', 100)}
+- Test Duration: {config.get('duration_seconds', 300)} seconds
+- Ramp-Up Period: {config.get('ramp_up_seconds', 60)} seconds
+- Think Time: {config.get('think_time_ms', 500)} ms (use lr_think_time() in seconds, so divide by 1000)
+- Base URL: {config.get('base_url', 'https://api.example.com')}
+- Authentication: {config.get('auth_type', 'none')}
+
+## Requirements
+1. Start with the standard VuGen includes (#include "web_api.h" if needed; lr.h is implicit)
+2. Provide a complete Action() function returning 0 on success
+3. For each endpoint use web_url() for GET, web_submit_data() or web_custom_request() for POST/PUT/DELETE
+4. Wrap each request in lr_start_transaction("name") / lr_end_transaction("name", LR_AUTO)
+5. Use lr_save_string() / web_reg_save_param_ex() to capture dynamic values (IDs, tokens) between calls
+6. Insert lr_think_time() between transactions matching the configured think time (seconds)
+7. Add web_reg_find() before key requests to validate response content where appropriate
+8. Use lr_eval_string("{{param}}") for any parameterised value
+9. For bearer auth, add a web_add_header("Authorization","Bearer {{authToken}}") prior to requests
+10. End with return 0;
+
+Output ONLY raw C code for Action(). Do not output a main() or any project metadata.
+No markdown fences. No explanations. Comments inside the C code are welcome.
 """
 
 

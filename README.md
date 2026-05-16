@@ -8,11 +8,11 @@
 
 PerfAI combines **performance engineering expertise** with **Azure OpenAI** to automate your entire load testing workflow:
 
-1. **Generate** — Paste a Swagger URL, upload an OpenAPI file, GraphQL schema, or gRPC proto → get a production-ready load test script in JMeter, Gatling, or k6
-2. **Run** — Execute the test locally, spin up an AWS EC2 instance, or run distributed across multiple agents
-3. **Analyse** — AI reads your `.jtl` results and identifies bottlenecks, root causes, and fixes
+1. **Generate** — Paste a Swagger URL, upload an OpenAPI file, GraphQL schema, or gRPC proto → get a production-ready load test script in **JMeter, Gatling, k6, or LoadRunner (VuGen)**
+2. **Run** — Execute the test locally, spin up an AWS EC2 instance, or run distributed across multiple agents (JMeter)
+3. **Analyse** — AI reads your results from **any of the four engines** (JMeter `.jtl`, Gatling `simulation.log`, k6 JSON, or LoadRunner Analysis CSV) and identifies bottlenecks, root causes, and fixes
 4. **Report** — Get a full interactive dashboard + downloadable PDF report with charts, metrics tables, and AI findings
-5. **Compare** — Upload 2+ `.jtl` files to compare performance across runs side-by-side
+5. **Compare** — Upload 2+ results files (mix-and-match across engines) to compare performance across runs side-by-side
 6. **Export & Notify** — Push metrics to InfluxDB/Grafana, send Slack/Teams alerts, schedule recurring runs
 
 ## Architecture
@@ -22,13 +22,18 @@ PerfAI combines **performance engineering expertise** with **Azure OpenAI** to a
         ↓
   swagger_parser.py / graphql_parser.py  →  API endpoint/operation list
         ↓
- script_generator.py  →  Azure OpenAI API  →  JMX / Gatling / k6 script
+ script_generator.py  →  Azure OpenAI API  →  JMX / Gatling / k6 / LoadRunner script
         ↓
    jmeter_runner.py  →  JMeter CLI / AWS EC2 / Distributed  →  results (.jtl)
+   (Gatling / k6 / LoadRunner runs handled by the user's existing toolchain)
         ↓
-  results_parser.py  →  metrics dict (avg, p50–p99, throughput, errors per endpoint)
+ engine_dispatcher.py  → routes the results file to the right parser:
+   ├── results_parser.py        →  JMeter .jtl
+   ├── gatling_parser.py        →  Gatling simulation.log
+   ├── k6_parser.py             →  k6 JSON output
+   └── loadrunner_parser.py     →  LoadRunner Analysis CSV export
         ↓
-    ai_analyser.py   →  Azure OpenAI API  →  bottlenecks + recommendations
+ unified metrics dict  →  ai_analyser.py  →  Azure OpenAI  →  findings
         ↓
  report_generator.py →  Streamlit dashboard + PDF report
         ↓
@@ -97,6 +102,25 @@ You can still demo most of the app:
 
 Azure OpenAI has a free tier under the [Azure Free Account](https://azure.microsoft.com/en-us/free/) — sufficient to demo this app end-to-end.
 
+## LoadRunner Support
+
+LoadRunner is a commercial enterprise tool — PerfAI does **not** run LoadRunner for you, but it integrates with your existing VuGen/Controller/Analysis workflow:
+
+| Stage | What PerfAI does |
+|---|---|
+| **Script generation** | Generates a complete `Action.c` body (VuGen Web/HTTP protocol) from your API spec — with transactions, parameterisation, think time, and authentication |
+| **Run** | You run the test in your own LoadRunner Controller (or LoadRunner Cloud / OneLG). PerfAI cannot launch LoadRunner |
+| **Results analysis** | Export from LoadRunner Analysis (`Tools → Raw Data → Export to CSV`, or `Report → Summary → Save As CSV`), upload to PerfAI. The AI analyser, dashboard, PDF report, and Compare tab work identically to the JMeter flow |
+
+**Two supported CSV formats** (auto-detected on upload):
+
+1. **Raw Data export** — full per-transaction rows. Unlocks the entire pipeline (timeline charts, percentiles, errors-by-label).
+2. **Transaction Summary export** — pre-aggregated rows. Used as a fallback when raw data isn't available; produces summary metrics only.
+
+A sample LoadRunner CSV ([`sample_data/sample_loadrunner.csv`](sample_data/sample_loadrunner.csv)) is included for testing without a real LoadRunner install.
+
+> **Why no LoadRunner runner?** LoadRunner Controller is Windows-only, requires a paid license, and existing LoadRunner shops have established execution pipelines. We respect that boundary.
+
 ## Try It Without JMeter (or any setup)
 
 No JMeter installed? Use the included sample `.jtl` file:
@@ -117,6 +141,7 @@ No JMeter installed? Use the included sample `.jtl` file:
 | JMX generation | Production-grade scripts with auth, timers, assertions, and listeners |
 | Gatling generation | Scala simulation via Azure OpenAI — stages, pauses, assertions |
 | k6 generation | JavaScript test script via Azure OpenAI — stages, checks, thresholds |
+| LoadRunner generation | VuGen Web/HTTP `Action.c` via Azure OpenAI — transactions, parameterisation, think time |
 | Load test configuration | Virtual users, duration, ramp-up, think time, base URL, auth type |
 | Local JMeter runner | Run tests via subprocess, captures results automatically |
 | AWS EC2 runner | Auto-provision instance, run test, download results, terminate |
@@ -124,8 +149,8 @@ No JMeter installed? Use the included sample `.jtl` file:
 | InfluxDB export | Push per-endpoint metrics to InfluxDB v2 for live Grafana dashboards |
 | Slack / Teams notify | Send test completion summary + AI findings to a webhook |
 | Scheduled runs | APScheduler cron-based recurring tests while the app is running |
-| .jtl parser | Computes avg, p50, p90, p95, p99, throughput, error rates per endpoint |
-| Timeline bucketing | 10-second window breakdown for throughput and latency over time |
+| Multi-engine results parser | Reads JMeter `.jtl`, Gatling `simulation.log`, k6 JSON, or LoadRunner Analysis CSV — auto-detected from file extension/header |
+| Timeline bucketing | 10-second window breakdown for throughput and latency over time (all four engines) |
 | AI bottleneck analysis | Identifies root causes — DB pressure, connection pool, N+1 queries, auth |
 | Structured findings | Bottleneck / Warning / Strength / Recommendation with severity levels |
 | Interactive dashboard | Plotly charts — timeline, latency bar, error rate, latency spread, error pie |
@@ -165,19 +190,24 @@ perfai/
 ├── requirements.txt
 ├── .env.example
 ├── src/
-│   ├── swagger_parser.py   ← Parses Swagger/OpenAPI specs + gRPC .proto files
-│   ├── graphql_parser.py   ← Parses GraphQL (introspection or SDL)
-│   ├── script_generator.py ← Generates JMX / Gatling / k6 via Azure OpenAI
-│   ├── jmeter_runner.py    ← Runs JMeter locally, on AWS EC2, or distributed
-│   ├── results_parser.py   ← Parses .jtl CSV files into metrics
-│   ├── ai_analyser.py      ← Sends metrics to Azure OpenAI for analysis
-│   ├── report_generator.py ← Builds interactive Plotly charts and PDF report
-│   ├── influxdb_writer.py  ← Exports metrics to InfluxDB v2
-│   ├── notifier.py         ← Sends Slack / Teams webhook notifications
-│   └── scheduler.py        ← APScheduler-based recurring test scheduling
+│   ├── swagger_parser.py      ← Parses Swagger/OpenAPI specs + gRPC .proto files
+│   ├── graphql_parser.py      ← Parses GraphQL (introspection or SDL)
+│   ├── script_generator.py    ← Generates JMX / Gatling / k6 / LoadRunner scripts via Azure OpenAI
+│   ├── jmeter_runner.py       ← Runs JMeter locally, on AWS EC2, or distributed
+│   ├── engine_dispatcher.py   ← Auto-detects engine from a results file and routes to the right parser
+│   ├── results_parser.py      ← Parses JMeter .jtl CSV files into metrics
+│   ├── gatling_parser.py      ← Parses Gatling simulation.log into metrics
+│   ├── k6_parser.py           ← Parses k6 JSON output into metrics
+│   ├── loadrunner_parser.py   ← Parses LoadRunner Analysis CSV export into metrics
+│   ├── ai_analyser.py         ← Sends metrics to Azure OpenAI for analysis
+│   ├── report_generator.py    ← Builds interactive Plotly charts and PDF report
+│   ├── influxdb_writer.py     ← Exports metrics to InfluxDB v2
+│   ├── notifier.py            ← Sends Slack / Teams webhook notifications
+│   └── scheduler.py           ← APScheduler-based recurring test scheduling
 ├── sample_data/
-│   └── sample_results.jtl  ← Sample JMeter results for testing
-└── output/                 ← Generated scripts and reports saved here
+│   ├── sample_results.jtl        ← Sample JMeter results for testing
+│   └── sample_loadrunner.csv     ← Sample LoadRunner Analysis Raw Data export
+└── output/                    ← Generated scripts and reports saved here
 ```
 
 
